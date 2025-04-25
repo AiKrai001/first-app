@@ -15,9 +15,7 @@ import retrofit2.http.Query
 interface CaiYunWeatherApi {
     /**
      * 获取天气综合数据
-     *
-     * 方法签名经过简化处理，以避免泛型混淆问题
-     */
+     **/
     @Keep
     @GET("v2.6/{token}/{location}/weather")
     suspend fun getWeatherData(

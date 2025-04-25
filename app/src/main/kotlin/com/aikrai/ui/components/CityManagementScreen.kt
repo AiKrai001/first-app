@@ -155,7 +155,6 @@ fun CityManagementScreen(
             ) {
                 items(citiesList, { it.hashCode().toString() }) { city ->
                     ReorderableItem(reorderableState, key = city.hashCode().toString()) { isDragging ->
-                        val elevation = if (isDragging) 8.dp else 0.dp
                         CityWeatherItem(
                             city = city,
                             onClick = { onCityClick(city) },

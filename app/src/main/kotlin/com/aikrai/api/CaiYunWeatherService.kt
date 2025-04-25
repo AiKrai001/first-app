@@ -1,5 +1,6 @@
 package com.aikrai.api
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -31,13 +32,9 @@ import java.util.concurrent.TimeUnit
  */
 @Keep
 class CaiYunWeatherService(private val context: Context) {
-    private val TAG = "CaiYunWeatherService"
-
     /** 彩云天气API的基础URL */
     private val BASE_URL = "https://api.caiyunapp.com/"
 
-    // 彩云天气API Token
-    // 注意：此处使用硬编码的备用Token，以防止混淆导致的问题
     // 优先使用AndroidManifest中的配置，如果获取失败则使用此备用值
     private val BACKUP_TOKEN = ""
 
@@ -620,9 +617,8 @@ class CaiYunWeatherService(private val context: Context) {
      * @param district 区县
      * @return 默认的天气数据对象
      */
+    @SuppressLint("DefaultLocale")
     private fun createDefaultWeatherData(province: String, city: String, district: String): WeatherData {
-        val today = LocalDate.now()
-
         val hourlyForecasts = List(24) { index ->
             val hour = (LocalDateTime.now().hour + index) % 24
             HourlyForecast(

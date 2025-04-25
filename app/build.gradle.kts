@@ -20,7 +20,7 @@ android {
 
         // 添加ABI过滤器，只保留主流架构
         ndk {
-            abiFilters.add("armeabi-v7a")
+//            abiFilters.add("armeabi-v7a")
             abiFilters.add("arm64-v8a")
         }
 
@@ -117,7 +117,6 @@ dependencies {
 
     // 添加标准的SwipeRefresh组件
     implementation("androidx.compose.material:material:1.6.8")
-//    implementation("com.google.accompanist:accompanist-swiperefresh:0.36.0")
 
     // 添加可拖拽排序列表组件
     implementation("org.burnoutcrew.composereorderable:reorderable:0.9.6")

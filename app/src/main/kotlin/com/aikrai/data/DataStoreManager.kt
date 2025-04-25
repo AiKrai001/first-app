@@ -10,7 +10,6 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.aikrai.location.LocationInfo
-import com.aikrai.model.WeatherData
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
@@ -42,14 +41,8 @@ class DataStoreManager(context: Context) {
         // 最后一次获取位置和天气的时间戳
         private val LAST_LOCATION_UPDATE_TIME = longPreferencesKey("last_location_update_time")
 
-        // 最后一次成功获取的位置信息
-        private val LAST_LOCATION_INFO = stringPreferencesKey("last_location_info")
-
         // 已保存的位置列表
         private val SAVED_LOCATIONS = stringPreferencesKey("saved_locations")
-
-        // 保存当前位置的key
-        private const val CURRENT_LOCATION_KEY = "current_location"
 
         // 保存已保存位置列表的key
         private const val SAVED_LOCATIONS_KEY = "saved_locations"
@@ -65,18 +58,8 @@ class DataStoreManager(context: Context) {
     private fun toJson(obj: Any): String {
         return try {
             gson.toJson(obj)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             "{}" // 出错时返回空对象
-        }
-    }
-
-    // 安全地从JSON转换为对象
-    private inline fun <reified T> fromJson(json: String?): T? {
-        if (json.isNullOrEmpty()) return null
-        return try {
-            gson.fromJson(json, object : TypeToken<T>() {}.type)
-        } catch (e: Exception) {
-            null
         }
     }
 
@@ -89,42 +72,12 @@ class DataStoreManager(context: Context) {
         }
     }
 
-    // 获取位置信息Flow
-    fun getLocationInfo(): Flow<LocationInfo?> {
-        return dataStore.data
-            .catch { exception ->
-                if (exception is IOException) {
-                    emit(emptyPreferences())
-                } else {
-                    throw exception
-                }
-            }
-            .map { preferences ->
-                val locationInfoJson = preferences[LOCATION_INFO]
-                if (locationInfoJson != null) {
-                    try {
-                        gson.fromJson(locationInfoJson, LocationInfo::class.java)
-                    } catch (e: Exception) {
-                        null
-                    }
-                } else {
-                    null
-                }
-            }
-    }
-
     // 保存今天的天气数据，传入字符串形式的weatherData
     suspend fun saveTodayWeatherData(weatherDataJson: String, dateString: String, locationKey: String = "default") {
         val key = stringPreferencesKey("${WEATHER_DATA_PREFIX}${locationKey}_$dateString")
         dataStore.edit { preferences ->
             preferences[key] = weatherDataJson
         }
-    }
-
-    // 保存今天的天气数据，传入WeatherData对象
-    suspend fun saveTodayWeatherData(weatherData: WeatherData, dateString: String, locationKey: String = "default") {
-        val weatherJson = gson.toJson(weatherData)
-        saveTodayWeatherData(weatherJson, dateString, locationKey)
     }
 
     // 获取昨天的天气数据
@@ -149,28 +102,6 @@ class DataStoreManager(context: Context) {
                 // 获取昨天的天气数据
                 preferences[yesterdayKey]
             }
-    }
-
-    // 获取指定日期的天气数据
-    fun getWeatherDataForDate(date: LocalDate, locationKey: String = "default"): Flow<String?> {
-        val dateString = date.format(dateFormatter)
-        return dataStore.data
-            .catch { exception ->
-                if (exception is IOException) {
-                    emit(emptyPreferences())
-                } else {
-                    throw exception
-                }
-            }
-            .map { preferences ->
-                val key = stringPreferencesKey("${WEATHER_DATA_PREFIX}${locationKey}_$dateString")
-                preferences[key]
-            }
-    }
-
-    // 获取今天的天气数据 - 根据位置键
-    suspend fun getTodayWeatherData(locationKey: String): String? {
-        return dataStore.data.first()[stringPreferencesKey("${WEATHER_DATA_PREFIX}$locationKey")]
     }
 
     // 获取今天的天气数据 - 根据日期和位置键
@@ -212,34 +143,9 @@ class DataStoreManager(context: Context) {
         return try {
             val listType: Type = object : TypeToken<List<LocationInfo>>() {}.type
             gson.fromJson(locationsJson, listType) ?: emptyList()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
-    }
-
-    // 实时观察位置列表变化的Flow（用于UI实时更新）
-    fun observeSavedLocations(): Flow<List<LocationInfo>> {
-        return dataStore.data
-            .catch { exception ->
-                if (exception is IOException) {
-                    emit(emptyPreferences())
-                } else {
-                    throw exception
-                }
-            }
-            .map { preferences ->
-                val locationsJson = preferences[SAVED_LOCATIONS]
-                if (locationsJson != null) {
-                    try {
-                        val listType: Type = object : TypeToken<List<LocationInfo>>() {}.type
-                        gson.fromJson<List<LocationInfo>>(locationsJson, listType) ?: emptyList()
-                    } catch (e: Exception) {
-                        emptyList()
-                    }
-                } else {
-                    emptyList()
-                }
-            }
     }
 
     // 移除已保存的位置
@@ -261,77 +167,6 @@ class DataStoreManager(context: Context) {
         return "${locationInfo.province}_${locationInfo.city}_${locationInfo.district}"
     }
 
-    // 获取当前位置信息
-    fun getCurrentLocation(): Flow<LocationInfo?> = dataStore.data
-        .map { preferences ->
-            val locationJson = preferences[stringPreferencesKey(CURRENT_LOCATION_KEY)]
-            if (locationJson != null) {
-                try {
-                    gson.fromJson(locationJson, LocationInfo::class.java)
-                } catch (e: Exception) {
-                    null
-                }
-            } else {
-                null
-            }
-        }
-
-    // 保存当前位置信息
-    suspend fun saveCurrentLocation(locationInfo: LocationInfo) {
-        dataStore.edit { preferences ->
-            val locationJson = gson.toJson(locationInfo)
-            preferences[stringPreferencesKey(CURRENT_LOCATION_KEY)] = locationJson
-        }
-    }
-
-    // 获取保存的位置列表
-    fun getSavedLocationsList(): Flow<List<LocationInfo>> = dataStore.data
-        .map { preferences ->
-            val locationsJson = preferences[stringPreferencesKey(SAVED_LOCATIONS_KEY)]
-            if (locationsJson != null) {
-                try {
-                    val type = object : TypeToken<List<LocationInfo>>() {}.type
-                    gson.fromJson<List<LocationInfo>>(locationsJson, type) ?: emptyList()
-                } catch (e: Exception) {
-                    emptyList()
-                }
-            } else {
-                emptyList()
-            }
-        }
-
-    // 保存位置列表
-    suspend fun saveLocationsList(locations: List<LocationInfo>) {
-        dataStore.edit { preferences ->
-            val locationsJson = gson.toJson(locations)
-            preferences[stringPreferencesKey(SAVED_LOCATIONS_KEY)] = locationsJson
-            // 同时更新SAVED_LOCATIONS，确保两处数据一致
-            preferences[SAVED_LOCATIONS] = locationsJson
-        }
-    }
-
-    // 从已保存列表中移除一个位置
-    suspend fun removeLocationFromSavedList(locationInfo: LocationInfo) {
-        val locations = getSavedLocations().toMutableList()
-
-        // 根据省市区查找并移除
-        val index = locations.indexOfFirst {
-            it.province == locationInfo.province &&
-                    it.city == locationInfo.city &&
-                    it.district == locationInfo.district
-        }
-
-        if (index >= 0) {
-            locations.removeAt(index)
-            // 保存更新后的列表
-            dataStore.edit { preferences ->
-                val locationsJson = gson.toJson(locations)
-                preferences[SAVED_LOCATIONS] = locationsJson
-                preferences[stringPreferencesKey(SAVED_LOCATIONS_KEY)] = locationsJson
-            }
-        }
-    }
-
     // 保存重新排序的位置列表
     suspend fun saveReorderedLocations(locations: List<LocationInfo>) {
         dataStore.edit { preferences ->
@@ -340,31 +175,4 @@ class DataStoreManager(context: Context) {
             preferences[stringPreferencesKey(SAVED_LOCATIONS_KEY)] = locationsJson
         }
     }
-
-    // 清除特定位置的天气数据缓存
-    suspend fun clearWeatherDataForLocation(locationKey: String) {
-        dataStore.edit { preferences ->
-            val keysToRemove = preferences.asMap().keys.filter { key ->
-                key.name.startsWith(WEATHER_DATA_PREFIX) &&
-                        key.name.contains(locationKey)
-            }
-
-            keysToRemove.forEach { key ->
-                preferences.remove(key)
-            }
-        }
-    }
-
-    // 清除所有天气数据缓存
-    suspend fun clearAllWeatherData() {
-        dataStore.edit { preferences ->
-            val keysToRemove = preferences.asMap().keys.filter { key ->
-                key.name.startsWith(WEATHER_DATA_PREFIX)
-            }
-
-            keysToRemove.forEach { key ->
-                preferences.remove(key)
-            }
-        }
-    }
-} 
+}

@@ -62,29 +62,4 @@ object QWeatherIconUtils {
             else -> Color.White
         }
     }
-
-    /**
-     * 将彩云天气的skycon代码转换为QWeather图标代码
-     * @param skycon 彩云天气API返回的skycon代码
-     * @return QWeather图标代码
-     */
-    fun skyconToQWeatherCode(skycon: String): String {
-        return when (skycon) {
-            "CLEAR_DAY", "CLEAR_NIGHT" -> "100" // 晴
-            "PARTLY_CLOUDY_DAY", "PARTLY_CLOUDY_NIGHT" -> "101" // 多云
-            "CLOUDY" -> "104" // 阴
-            "LIGHT_HAZE", "MODERATE_HAZE", "HEAVY_HAZE" -> "500" // 霾
-            "LIGHT_RAIN" -> "300" // 小雨
-            "MODERATE_RAIN" -> "301" // 中雨
-            "HEAVY_RAIN", "STORM_RAIN" -> "302" // 大雨
-            "FOG" -> "501" // 雾
-            "LIGHT_SNOW" -> "400" // 小雪
-            "MODERATE_SNOW" -> "401" // 中雪
-            "HEAVY_SNOW", "STORM_SNOW" -> "402" // 大雪
-            "DUST" -> "503" // 扬沙
-            "SAND" -> "504" // 沙尘暴
-            "WIND" -> "507" // 大风
-            else -> "999" // 未知
-        }
-    }
-} 
+}

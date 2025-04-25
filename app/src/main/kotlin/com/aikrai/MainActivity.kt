@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -14,15 +13,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.Keep
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -93,10 +87,6 @@ class WeatherViewModelFactory(
 
 @Keep
 class MainActivity : ComponentActivity() {
-    companion object {
-        private const val TAG = "MainActivity"
-    }
-
     // 初始化LocationManager，负责处理位置相关的功能
     private val locationManager by lazy { LocationManager(this) }
 
@@ -110,7 +100,7 @@ class MainActivity : ComponentActivity() {
 
     // 全局错误处理器
     private val errorHandler = CoroutineExceptionHandler { _, exception ->
-        Log.e(TAG, "捕获到未处理的协程异常", exception)
+        Timber.e(exception, "捕获到未处理的协程异常")
         lifecycleScope.launch(Dispatchers.Main) {
             Toast.makeText(
                 this@MainActivity,
@@ -133,10 +123,10 @@ class MainActivity : ComponentActivity() {
                 // 权限已授予，立即获取位置并加载天气数据
                 lifecycleScope.launch(errorHandler) {
                     try {
-                        Log.d(TAG, "位置权限已获取，开始定位")
+                        Timber.d("位置权限已获取，开始定位")
                         weatherViewModel.startLocationUpdates()
                     } catch (e: Exception) {
-                        Log.e(TAG, "启动位置更新失败", e)
+                        Timber.e(e, "启动位置更新失败")
                         Toast.makeText(
                             this@MainActivity,
                             "获取位置失败: ${e.localizedMessage}",
@@ -152,7 +142,7 @@ class MainActivity : ComponentActivity() {
 
             else -> {
                 // 用户拒绝了权限请求
-                Log.w(TAG, "用户拒绝了位置权限请求")
+                Timber.w("用户拒绝了位置权限请求")
                 Toast.makeText(
                     this,
                     "需要位置权限来获取准确的天气信息",
@@ -169,17 +159,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val isDebug =
-            applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
-        if (isDebug) {
-            Timber.plant(DebugLogTree())
-            Timber.d("应用启动：调试模式")
-        } else {
-            Timber.plant(ReleaseTree())
-            Timber.i("应用启动：发布模式")
-        }
-
-        Log.d(TAG, "onCreate: 应用启动")
+        // 初始化Timber日志系统
+        initializeTimber()
 
         try {
             // 1. 启用边缘到边缘显示，优化视觉效果
@@ -206,49 +187,20 @@ class MainActivity : ComponentActivity() {
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "MainActivity onCreate发生严重错误", e)
+            Timber.e(e, "MainActivity onCreate发生严重错误")
             Toast.makeText(
                 this,
                 "应用启动失败: ${e.localizedMessage}",
                 Toast.LENGTH_LONG
             ).show()
         }
-
-        // 测试日志代码
-        Log.d("MainActivity", "onCreate: 使用Android Log")
-
-        Timber.v("onCreate: 这是详细日志信息") // VERBOSE级别
-        Timber.d("onCreate: 这是调试日志信息") // DEBUG级别
-        Timber.i("onCreate: 这是重要信息日志") // INFO级别
-        Timber.w("onCreate: 这是警告日志信息") // WARN级别
-        Timber.e("onCreate: 这是错误日志信息") // ERROR级别
-
-        // 测试带异常的日志
-        try {
-            // 模拟一个异常
-            val list = listOf(1, 2, 3)
-            val item = list[10] // 这会抛出IndexOutOfBoundsException
-        } catch (e: Exception) {
-            Timber.e(e, "发生异常: 数组越界访问")
-        }
-
-        // 测试不同线程的日志
-        Thread {
-            Timber.i("这是在后台线程中记录的日志")
-            try {
-                Thread.sleep(100)
-                throw RuntimeException("后台线程异常")
-            } catch (e: Exception) {
-                Timber.e(e, "后台线程发生异常")
-            }
-        }.start()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         // 活动销毁时停止位置更新，避免资源泄漏
         weatherViewModel.stopLocationUpdates()
-        Log.d(TAG, "onDestroy: 应用关闭")
+        Timber.d("onDestroy: 应用关闭")
     }
 
     /**
@@ -257,7 +209,7 @@ class MainActivity : ComponentActivity() {
      */
     private fun checkLocationPermission() {
         try {
-            Log.d(TAG, "开始检查位置权限")
+            Timber.d("开始检查位置权限")
             when {
                 ContextCompat.checkSelfPermission(
                     this,
@@ -268,7 +220,7 @@ class MainActivity : ComponentActivity() {
                             Manifest.permission.ACCESS_COARSE_LOCATION
                         ) == PackageManager.PERMISSION_GRANTED -> {
                     // 已有权限，立即开始获取位置并加载天气
-                    Log.d(TAG, "已有位置权限，开始定位")
+                    Timber.d("已有位置权限，开始定位")
                     lifecycleScope.launch(errorHandler) {
                         weatherViewModel.startLocationUpdates()
                     }
@@ -277,7 +229,7 @@ class MainActivity : ComponentActivity() {
 
                 else -> {
                     // 没有权限，发起权限请求
-                    Log.d(TAG, "没有位置权限，发起权限请求")
+                    Timber.d("没有位置权限，发起权限请求")
                     locationPermissionRequest.launch(
                         arrayOf(
                             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -287,7 +239,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "检查位置权限过程中发生错误", e)
+            Timber.e(e, "检查位置权限过程中发生错误")
             // 出错时尝试加载默认位置
             lifecycleScope.launch(errorHandler) {
                 weatherViewModel.loadLastLocation()
@@ -299,7 +251,7 @@ class MainActivity : ComponentActivity() {
      * 删除城市位置
      */
     private fun deleteCityLocation(locationInfo: LocationInfo) {
-        Log.d(TAG, "开始删除城市: ${locationInfo.district}")
+        Timber.d("开始删除城市: ${locationInfo.district}")
         lifecycleScope.launch(errorHandler) {
             weatherViewModel.removeLocation(locationInfo)
         }
@@ -337,6 +289,22 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
+     * 初始化Timber日志系统
+     * 根据应用是否处于调试模式选择不同的日志树
+     */
+    private fun initializeTimber() {
+        val isDebug =
+            applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
+        if (isDebug) {
+            Timber.plant(DebugLogTree())
+            Timber.d("应用启动：调试模式")
+        } else {
+            Timber.plant(ReleaseTree())
+            Timber.i("应用启动：发布模式")
+        }
+    }
+
+    /**
      * 调试版本使用的日志树，提供完整的调用信息
      */
     private class DebugLogTree : Timber.DebugTree() {
@@ -359,24 +327,26 @@ class MainActivity : ComponentActivity() {
 
         override fun isLoggable(tag: String?, priority: Int): Boolean {
             // 只记录INFO及以上级别的日志
-            return priority >= Log.INFO
+            return priority >= android.util.Log.INFO
         }
 
         override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
             val threadName = Thread.currentThread().name
             val formattedMessage = "[$threadName] $message"
-
-            val logPriority = priority
             val logTag = createTag()
 
             // 普通日志
             if (t == null) {
-                Log.println(logPriority, logTag, formattedMessage)
+                android.util.Log.println(priority, logTag, formattedMessage)
                 return
             }
 
             // 带异常的日志
-            Log.println(logPriority, logTag, "$formattedMessage\n${Log.getStackTraceString(t)}")
+            android.util.Log.println(
+                priority,
+                logTag,
+                "$formattedMessage\n${android.util.Log.getStackTraceString(t)}"
+            )
         }
 
         /**
@@ -438,9 +408,6 @@ fun WeatherAppWithViewModel(
     )
     val coroutineScope = rememberCoroutineScope()
 
-    // 获取状态栏高度
-    val statusBarPadding = WindowInsets.statusBars.asPaddingValues()
-
     // 监听天气状态变化，非加载状态时结束下拉刷新
     LaunchedEffect(weatherUiState) {
         if (weatherUiState !is WeatherViewModel.WeatherUiState.Loading) {
@@ -471,7 +438,7 @@ fun WeatherAppWithViewModel(
                 pagerState.scrollToPage(currentLocationIndex.coerceIn(0, savedLocations.size - 1))
             } catch (e: Exception) {
                 // 处理可能的越界异常
-                Log.e("MainActivity", "滚动页面异常", e)
+                Timber.e(e, "滚动页面异常")
             }
         }
     }
@@ -563,7 +530,6 @@ fun WeatherAppWithViewModel(
                                     locationInfo = pageLocationInfo,
                                     onAddLocationClick = onAddLocationClick,
                                     onMenuClick = onMenuClick,
-                                    statusBarPadding = statusBarPadding,
                                     locationCount = savedLocations.size,
                                     currentLocationIndex = page // 使用当前页索引
                                 )
@@ -601,7 +567,7 @@ fun WeatherAppWithViewModel(
                     },
                     onCityDelete = { city ->
                         // 显示删除确认
-                        Log.d("MainActivity", "请求删除城市: ${city.district}, ${city.city}")
+                        Timber.d("请求删除城市: ${city.district}, ${city.city}")
 
                         // 查找对应的LocationInfo并删除
                         val locationInfo = savedLocations.find {
@@ -613,7 +579,7 @@ fun WeatherAppWithViewModel(
                         if (locationInfo != null) {
                             onCityDelete(locationInfo)
                         } else {
-                            Log.e("MainActivity", "未找到对应的LocationInfo")
+                            Timber.e("未找到对应的LocationInfo")
                         }
                     },
                     onCityReorder = { reorderedCities ->
@@ -670,7 +636,6 @@ fun WeatherContent(
     locationInfo: LocationInfo? = null,
     onAddLocationClick: () -> Unit = {},
     onMenuClick: () -> Unit = {},
-    statusBarPadding: PaddingValues = PaddingValues(0.dp),
     locationCount: Int = 0,
     currentLocationIndex: Int = 0
 ) {
@@ -705,8 +670,6 @@ fun WeatherContent(
                 lowTemperature = weatherData.lowTemperature,
                 windSpeed = weatherData.windSpeed,
                 apparentTemperature = weatherData.apparentTemperature,
-                precipitation = weatherData.precipitation,
-                visibility = weatherData.visibility,
                 forecastKeypoint = weatherData.forecastKeypoint
             )
 
@@ -719,35 +682,6 @@ fun WeatherContent(
             DailyForecastCard(dailyForecasts = weatherData.dailyForecast)
 
             AirQualityCard(airQuality = weatherData.airQuality)
-        }
-    }
-}
-
-/**
- * 简单的错误屏幕，用于显示异常信息
- */
-@Composable
-fun ErrorScreen(errorMessage: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "加载出错",
-                color = Color.Red,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = errorMessage,
-                color = Color.Gray,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp)
-            )
         }
     }
 }

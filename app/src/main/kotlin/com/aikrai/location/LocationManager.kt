@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
-import android.util.Log
 import androidx.core.app.ActivityCompat
 import com.tencent.map.geolocation.TencentLocation
 import kotlinx.coroutines.CoroutineScope
@@ -15,11 +14,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.util.concurrent.atomic.AtomicBoolean
 
 
 class LocationManager(private val context: Context) {
-    private val TAG = "LocationManager"
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     // 添加标志位，防止重复更新
@@ -35,7 +34,6 @@ class LocationManager(private val context: Context) {
     private val tencentLocationService = TencentLocationService(context)
 
     private val _locationInfo = MutableStateFlow<LocationInfo?>(null)
-    val locationInfo = _locationInfo.asStateFlow()
 
     private val _locationState = MutableStateFlow<LocationState>(LocationState.Loading)
     val locationState = _locationState.asStateFlow()
@@ -43,13 +41,8 @@ class LocationManager(private val context: Context) {
     // 添加一个变量来存储最后一次获取到的位置信息
     private var _lastLocation: TencentLocation? = null
 
-    // 添加获取最后位置的方法
-    fun getLastLocation(): TencentLocation? {
-        return _lastLocation ?: tencentLocationService.getLastLocation()
-    }
-
     @SuppressLint("MissingPermission")
-    suspend fun startLocationUpdates() {
+    fun startLocationUpdates() {
         if (!hasLocationPermissions()) {
             _locationState.value = LocationState.Error("未授权位置权限")
             return
@@ -58,7 +51,7 @@ class LocationManager(private val context: Context) {
         try {
             // 如果已经在更新位置或已经成功获取过位置，则不再重复请求
             if (isUpdatingLocation.get()) {
-                Log.d(TAG, "已经在获取位置信息，忽略此次请求")
+                Timber.d("已经在获取位置信息，忽略此次请求")
                 return
             }
 
@@ -72,7 +65,7 @@ class LocationManager(private val context: Context) {
                     // 使用腾讯定位SDK获取位置，添加超时控制
                     withTimeoutOrFallback()
                 } catch (e: Exception) {
-                    Log.e(TAG, "位置更新过程中出错", e)
+                    Timber.e(e, "位置更新过程中出错")
                     // 如果获取位置失败，则回退到默认位置
                     fallbackToDefaultLocation()
                 } finally {
@@ -81,7 +74,7 @@ class LocationManager(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "获取位置失败", e)
+            Timber.e(e, "获取位置失败")
             _locationState.value = LocationState.Error("获取位置失败: ${e.message}")
             isUpdatingLocation.set(false)
         }
@@ -96,7 +89,7 @@ class LocationManager(private val context: Context) {
         delay(locationTimeoutMillis)
 
         if (!hasLocationSucceeded.get() && locationJob.isActive) {
-            Log.d(TAG, "位置更新超时")
+            Timber.d("位置更新超时")
             locationJob.cancel()
             fallbackToDefaultLocation()
         }
@@ -115,14 +108,14 @@ class LocationManager(private val context: Context) {
                     hasLocationSucceeded.set(true)
                 },
                 onFailure = { e ->
-                    Log.e(TAG, "获取位置信息失败", e)
+                    Timber.e(e, "获取位置信息失败")
                     if (!hasLocationSucceeded.get()) {
                         fallbackToDefaultLocation()
                     }
                 }
             )
         } catch (e: Exception) {
-            Log.e(TAG, "请求位置更新失败", e)
+            Timber.e(e, "请求位置更新失败")
             fallbackToDefaultLocation()
         }
     }
@@ -143,11 +136,11 @@ class LocationManager(private val context: Context) {
             val locationInfo = LocationInfo.fromTencentLocation(lastLoc)
             _locationInfo.value = locationInfo
             _locationState.value = LocationState.Success(locationInfo)
-            Log.d(TAG, "使用上次缓存的位置作为默认位置: ${locationInfo.district}")
+            Timber.d("使用上次缓存的位置作为默认位置: ${locationInfo.district}")
         } else {
             // 如果没有上次的位置信息，则通知错误，让ViewModel处理
             _locationState.value = LocationState.Error("无法获取位置信息")
-            Log.e(TAG, "无法获取位置信息且没有缓存位置")
+            Timber.e("无法获取位置信息且没有缓存位置")
         }
     }
 

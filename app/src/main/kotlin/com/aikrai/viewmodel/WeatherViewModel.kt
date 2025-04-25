@@ -1,9 +1,7 @@
 package com.aikrai.viewmodel
 
 import android.content.Context
-import android.util.Log
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aikrai.api.CaiYunWeatherService
 import com.aikrai.data.DataStoreManager
@@ -21,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -90,7 +89,7 @@ class WeatherViewModel(
                 }
                 // 不会自动启动位置更新，等待Activity调用startLocationUpdates
             } catch (e: Exception) {
-                Log.e(TAG, "初始化时出错", e)
+                Timber.e(e, "初始化时出错")
                 _weatherUiState.value = WeatherUiState.Success(MockWeatherData.weatherData)
             }
         }
@@ -209,7 +208,7 @@ class WeatherViewModel(
         viewModelScope.launch {
             val locations = dataStoreManager.getSavedLocations()
             _savedLocations.value = locations
-            Log.d(TAG, "已加载保存的位置列表: ${locations.size}个位置")
+            Timber.d("已加载保存的位置列表: ${locations.size}个位置")
         }
     }
 
@@ -242,7 +241,7 @@ class WeatherViewModel(
                         val weatherData = gson.fromJson(cachedWeatherJson, WeatherData::class.java)
                         cachedData[locationKey] = weatherData
                     } catch (e: Exception) {
-                        Log.e(TAG, "解析缓存天气数据失败", e)
+                        Timber.e(e, "解析缓存天气数据失败")
                     }
                 }
             }
@@ -344,54 +343,16 @@ class WeatherViewModel(
                 // 处理搜索结果
                 val processedResults = results.map { location ->
                     location.copy(
-                        province = location.province.replace("中国", "").trim(),
-                        city = location.city.replace("中国", "").trim(),
-                        district = location.district.replace("中国", "").trim(),
-                        address = location.address.replace("中国", "").trim()
+                        province = location.province,
+                        city = location.city,
+                        district = location.district,
+                        address = location.address
                     )
                 }
                 _citySearchState.value = CitySearchState.Success(processedResults)
             } catch (e: Exception) {
-                Log.e(TAG, "搜索地址失败", e)
+                Timber.e(e, "搜索地址失败")
                 _citySearchState.value = CitySearchState.Error(e.message ?: "搜索失败")
-            }
-        }
-    }
-
-    /**
-     * 添加新位置并获取其天气数据
-     */
-    fun addLocation(locationInfo: LocationInfo) {
-        // 检查省市区是否为空，如果有任一为空则不保存
-        if (locationInfo.province.isBlank() || locationInfo.city.isBlank() || locationInfo.district.isBlank()) {
-            Log.d(
-                TAG,
-                "位置信息不完整，不添加: 省=${locationInfo.province}, 市=${locationInfo.city}, 区=${locationInfo.district}"
-            )
-            return
-        }
-
-        viewModelScope.launch {
-            // 保存位置信息
-            dataStoreManager.addLocationToSavedList(locationInfo)
-
-            // 重新加载位置列表
-            loadSavedLocations()
-
-            // 获取新位置的天气数据
-            fetchWeatherByLocation(locationInfo)
-
-            // 切换到新位置
-            val newLocations = dataStoreManager.getSavedLocations()
-            val newIndex = newLocations.indexOfFirst {
-                it.province == locationInfo.province &&
-                        it.city == locationInfo.city &&
-                        it.district == locationInfo.district
-            }
-
-            if (newIndex >= 0) {
-                _currentLocationIndex.value = newIndex
-                updateCurrentLocationWeather()
             }
         }
     }
@@ -435,7 +396,7 @@ class WeatherViewModel(
      * 删除保存的位置
      */
     fun removeLocation(locationInfo: LocationInfo) {
-        Log.d(TAG, "开始删除位置: ${locationInfo.district}, ${locationInfo.city}")
+        Timber.d("开始删除位置: ${locationInfo.district}, ${locationInfo.city}")
         viewModelScope.launch {
             try {
                 // 获取当前位置索引和删除前的位置列表
@@ -450,27 +411,27 @@ class WeatherViewModel(
                 }
 
                 if (locationToRemove == null) {
-                    Log.e(TAG, "未找到要删除的位置: ${locationInfo.district}, ${locationInfo.city}")
+                    Timber.e("未找到要删除的位置: ${locationInfo.district}, ${locationInfo.city}")
                     return@launch
                 }
 
                 // 删除位置
                 dataStoreManager.removeLocation(locationInfo)
-                Log.d(TAG, "位置已从DataStore删除: ${locationInfo.district}, ${locationInfo.city}")
+                Timber.d("位置已从DataStore删除: ${locationInfo.district}, ${locationInfo.city}")
 
                 // 重新加载位置列表，确保UI更新
                 val newLocations = dataStoreManager.getSavedLocations()
-                Log.d(TAG, "新位置列表大小: ${newLocations.size}")
+                Timber.d("新位置列表大小: ${newLocations.size}")
                 _savedLocations.value = newLocations
 
                 // 处理当前选中的位置
                 if (newLocations.isEmpty()) {
                     // 如果没有位置了，则重新获取当前位置
-                    Log.d(TAG, "没有剩余位置，尝试获取当前位置")
+                    Timber.d("没有剩余位置，尝试获取当前位置")
                     startLocationUpdates()
                 } else if (currentIndex >= newLocations.size) {
                     // 如果当前索引超出范围，则切换到第一个位置
-                    Log.d(TAG, "当前索引($currentIndex)超出范围，切换到首位置")
+                    Timber.d("当前索引($currentIndex)超出范围，切换到首位置")
                     _currentLocationIndex.value = 0
                     updateCurrentLocationWeather()
                 } else {
@@ -483,7 +444,7 @@ class WeatherViewModel(
 
                     if (wasSelectedLocationRemoved) {
                         // 如果删除的是当前选中的位置，切换到首位置
-                        Log.d(TAG, "删除的是当前选中的位置，切换到首位置")
+                        Timber.d("删除的是当前选中的位置，切换到首位置")
                         _currentLocationIndex.value = 0
                     }
 
@@ -491,7 +452,7 @@ class WeatherViewModel(
                     updateCurrentLocationWeather()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "删除位置出错", e)
+                Timber.e(e, "删除位置出错")
             }
         }
     }
@@ -501,7 +462,7 @@ class WeatherViewModel(
      */
     private suspend fun fetchWeatherByLocation(locationInfo: LocationInfo) {
         try {
-            Log.d(TAG, "开始请求彩云天气数据: 经度=${locationInfo.longitude}, 纬度=${locationInfo.latitude}")
+            Timber.d("开始请求彩云天气数据: 经度=${locationInfo.longitude}, 纬度=${locationInfo.latitude}")
 
             val locationKey = dataStoreManager.getLocationKey(locationInfo)
 
@@ -511,7 +472,7 @@ class WeatherViewModel(
                 try {
                     gson.fromJson<WeatherData>(yesterdayDataJson, WeatherData::class.java)
                 } catch (e: Exception) {
-                    Log.e(TAG, "解析昨天天气数据失败", e)
+                    Timber.e(e, "解析昨天天气数据失败")
                     null
                 }
             } else {
@@ -536,7 +497,7 @@ class WeatherViewModel(
 
             result.fold(
                 onSuccess = { weatherData ->
-                    Log.d(TAG, "获取天气数据成功: ${locationInfo.district}")
+                    Timber.d("获取天气数据成功: ${locationInfo.district}")
 
                     // 更新保存的天气数据
                     val updatedData = _allWeatherData.value.toMutableMap()
@@ -556,7 +517,7 @@ class WeatherViewModel(
                     saveWeatherData(weatherData, locationInfo)
                 },
                 onFailure = { e ->
-                    Log.e(TAG, "获取天气数据失败: ${locationInfo.district}", e)
+                    Timber.e(e, "获取天气数据失败: ${locationInfo.district}")
 
                     // 如果是当前选中的位置，则更新UI错误状态
                     val currentIndex = _currentLocationIndex.value
@@ -582,7 +543,7 @@ class WeatherViewModel(
                 }
             )
         } catch (e: Exception) {
-            Log.e(TAG, "获取天气数据异常: ${locationInfo.district}", e)
+            Timber.e(e, "获取天气数据异常: ${locationInfo.district}")
 
             // 如果是当前选中的位置，则更新UI错误状态
             val currentIndex = _currentLocationIndex.value
@@ -614,7 +575,7 @@ class WeatherViewModel(
             val weatherDataJson = gson.toJson(weatherData)
             dataStoreManager.saveTodayWeatherData(weatherDataJson, currentDate, locationKey)
         } catch (e: Exception) {
-            Log.e(TAG, "保存天气数据失败", e)
+            Timber.e(e, "保存天气数据失败")
         }
     }
 
@@ -639,7 +600,7 @@ class WeatherViewModel(
         val locations = _savedLocations.value
         val weatherDataMap = _allWeatherData.value
 
-        return locations.mapNotNull { location ->
+        return locations.map { location ->
             val locationKey = dataStoreManager.getLocationKey(location)
             val weatherData = weatherDataMap[locationKey]
 
@@ -677,11 +638,11 @@ class WeatherViewModel(
                     fetchAllLocationsWeather()
                 } else {
                     // 没有保存的位置，显示默认天气数据
-                    Log.d(TAG, "没有保存的位置，显示默认天气数据")
+                    Timber.d("没有保存的位置，显示默认天气数据")
                     _weatherUiState.value = WeatherUiState.Success(MockWeatherData.weatherData)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "加载上次位置信息失败", e)
+                Timber.e(e, "加载上次位置信息失败")
                 _weatherUiState.value = WeatherUiState.Success(MockWeatherData.weatherData)
             }
         }
@@ -700,23 +661,6 @@ class WeatherViewModel(
         object Searching : CitySearchState()
         data class Success(val results: List<LocationInfo>) : CitySearchState()
         data class Error(val message: String) : CitySearchState()
-    }
-
-    /**
-     * 使用 Factory 方式创建 ViewModel，以便传入自定义的参数
-     */
-    class Factory(private val context: Context) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(WeatherViewModel::class.java)) {
-                return WeatherViewModel(
-                    context,
-                    LocationManager(context),
-                    CaiYunWeatherService(context)
-                ) as T
-            }
-            throw IllegalArgumentException("Unknown ViewModel class")
-        }
     }
 
     /**
@@ -763,7 +707,7 @@ class WeatherViewModel(
                     val weatherData = gson.fromJson<WeatherData>(yesterdayDataJson, WeatherData::class.java)
                     yesterdayDataMap[locationKey] = weatherData
                 } catch (e: Exception) {
-                    Log.e(TAG, "解析昨天天气数据失败: $locationKey", e)
+                    Timber.e(e, "解析昨天天气数据失败: $locationKey")
                 }
             }
         }

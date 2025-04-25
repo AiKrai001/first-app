@@ -1,5 +1,6 @@
 package com.aikrai.ui.components
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -116,13 +117,18 @@ fun LocationHeader(
                         .padding(horizontal = 3.dp)
                         .size(6.dp)
                         .clip(CircleShape)
-                        .background(if (index == currentLocationIndex) Color.White else Color.White.copy(alpha = 0.5f))
+                        .background(
+                            if (index == currentLocationIndex) Color.White else Color.White.copy(
+                                alpha = 0.5f
+                            )
+                        )
                 )
             }
         }
     }
 }
 
+@SuppressLint("DefaultLocale")
 @Composable
 fun CurrentWeather(
     currentTemperature: Double,
@@ -132,8 +138,6 @@ fun CurrentWeather(
     lowTemperature: Double,
     windSpeed: Double,
     apparentTemperature: Double = 0.0,
-    precipitation: Double = 0.0,
-    visibility: Double = 10.0,
     forecastKeypoint: String = ""
 ) {
     Column(
@@ -229,7 +233,9 @@ fun HourlyForecastCard(
         ) {
             // 头部标题和日出日落时间
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
@@ -243,7 +249,9 @@ fun HourlyForecastCard(
                         imageVector = Icons.Default.WbSunny,
                         contentDescription = "日出",
                         tint = Color.White,
-                        modifier = Modifier.padding(top = 4.dp).size(18.dp)
+                        modifier = Modifier
+                            .padding(top = 4.dp)
+                            .size(18.dp)
                     )
                     Text(
                         text = " 日出 $sunriseTime",
@@ -255,7 +263,9 @@ fun HourlyForecastCard(
                         imageVector = Icons.Default.NightsStay,
                         contentDescription = "日落",
                         tint = Color.White,
-                        modifier = Modifier.padding(top = 4.dp).size(18.dp)
+                        modifier = Modifier
+                            .padding(top = 4.dp)
+                            .size(18.dp)
                     )
                     Text(
                         text = " 日落 $sunsetTime",
@@ -502,9 +512,6 @@ fun AirQualityCard(airQuality: AirQuality) {
                     Canvas(
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        val center = Offset(size.width / 2, size.height / 2)
-                        val radius = size.width / 2 - 10.dp.toPx()
-
                         // 绘制背景圆环
                         drawArc(
                             color = Color.White.copy(alpha = 0.3f),
