@@ -16,5 +16,4 @@ local.properties
 /.idea
 /.kotlin
 /.cursor
-/gradle
 /.vscode
